@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+import json
+import os
 
 classificador_face = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
 classificador_olhos = cv2.CascadeClassifier("haarcascade_eye_tree_eyeglasses.xml")
@@ -10,11 +12,32 @@ numero_amostras = 25
 # Usado para dar um formato aos arquivos de fotos e
 # atribuir os nomes dos arquivos corretamente:
 # pessoa.{id}.{numero_foto}.jpg
-id = input("Digite o seu ID: ")
+id = int(input("Digite o seu ID: "))
+nome = input("Digite o seu nome: ")
+
+dados_pessoa = {
+    f"{id}": {
+        "nome": nome
+    }
+}
+
+arquivo_json = "pessoas.json"
+
+with open(arquivo_json, "r") as infile:
+    try:
+        dados_existentes = json.load(infile)
+    except json.JSONDecodeError:
+        dados_existentes = []
+
+dados_existentes.append(dados_pessoa)
+
+with open(arquivo_json, "w") as outfile:
+    json.dump(dados_existentes, outfile, indent=4)
+
 largura, altura = 150, 150
 print("Inicializando a camera...\n")
 print(" CONTROLES ".center(25, "="))
-print("\n[C]\tCapturar foto\n[1]\tParar execução")
+print("\n[C]\tCapturar foto\n[R]\tRecapturar uma foto\n[1]\tParar execução")
 
 while True:
     conectado, imagem = camera.read()
@@ -60,16 +83,28 @@ while True:
             else:
                 # As imagens devem ser tiradas em um ambiente iluminado
                 # para que essa condição seja verdadeira
-                if np.average(imagem_cinza) > 110:   
-                    imagem_face = cv2.resize(imagem_cinza[y:y + a, x:x + l], (largura, altura)) # Redimensionando a imagem...
+                imagem_face = cv2.resize(imagem_cinza[y:y + a, x:x + l], (largura, altura))
+                if np.average(imagem_face) > 110:
                     cv2.imwrite(f"fotos/pessoa.{id}.{amostra}.jpg", imagem_face) # Criando o arquivo na pasta...
                     print(f"Foto {amostra} capturada com sucesso!")
                     amostra += 1 # Partindo para a próxima amostra com o incremento...
-            
+                else:
+                    print("Iluminação insuficiente no rosto. Tente novamente.")
         elif tecla == ord('1'):
             camera.release()
             cv2.destroyAllWindows()
             break
+        elif tecla == ord('r'): # Recaptura
+            numero_foto = int(input("Digite o numero da foto a ser recapturada, de 1 a 25: "))
+            while numero_foto <= 0 or numero_foto > 25:
+                numero_foto = int(input("Digite o numero da foto a ser recapturada, de 1 a 25: "))
+                
+            print(f"Recapturando foto {numero_foto}...")
+            imagem_face = cv2.resize(imagem_cinza[y:y + a, x:x + l], (largura, altura))
+            if np.average(imagem_face) > 110:
+                cv2.imwrite(f"fotos/pessoa.{id}.{numero_foto}.jpg", imagem_face)
+            else:
+                print("Iluminação insuficiente no rosto. Tente novamente.")
                 
     cv2.imshow("Face", imagem)
 
